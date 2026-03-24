@@ -52,7 +52,7 @@ function AppRoutes() {
       path="/dashboard" 
       element={
         <MainLayout>
-          <ProtectedRoute allowedRoles={["student"]}>
+          <ProtectedRoute allowedRoles={["Teacher"]}>
           <Dashboard />
         </ProtectedRoute>
         </MainLayout>
