@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import Waves from '../Components/Wave';
 import { NavLink, useNavigate } from 'react-router-dom';
-import api from '../Components/API/Api';
+import api from '../Components/API/Api.jsx';
 
 function LoginPage() {
   const [email, setEmail] = useState('');

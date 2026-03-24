@@ -1,7 +1,7 @@
 // src/page/Register.jsx
 import React, { useState } from 'react';
 import Waves from '../Components/Wave';
-import api from '../Components/API/Api';
+import api from '../Components/API/Api.jsx';
 import { NavLink, useNavigate } from 'react-router-dom';
 
 function RegisterPage() {
