@@ -1,4 +1,4 @@
-import api from "../Components/API/Api.jsx";
+import api from '../Components/API/Api.jsx';
 
 // create course
 export const CreateCourse = async (courseName, teacherName, courseTime) => {
