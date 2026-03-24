@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../Components/API/api.jsx';
 import Model from '../Components/Course/Model';
-import { CreateCourse } from '../services/createCourse';
+import { CreateCourse } from '../services/CreateCourse';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import { NavLink } from 'react-router-dom';
