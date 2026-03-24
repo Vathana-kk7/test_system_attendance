@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import api from '../Components/API/Api.jsx';
+import api from '../Components/API/api.jsx';
 import Model from '../Components/Course/Model';
 import { CreateCourse } from '../services/createCourse';
 import Box from '@mui/material/Box';

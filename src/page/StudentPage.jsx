@@ -1,6 +1,6 @@
 import { Search, X, UserPlus, Trash2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import api from '../Components/API/Api.jsx';
+import api from '../Components/API/api.jsx';
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import { Crude, CreateStudent, UpdataStudent, DeleteStudent } from "../Components/Students/Crude";

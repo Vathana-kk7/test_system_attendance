@@ -1,5 +1,5 @@
 
-import api from "../API/Api";
+import api from "../API/api.jsx";
 // Filter
 export const Crude = ({ students, search }) => {
   const filtered = students.filter((s) =>
