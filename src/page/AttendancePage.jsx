@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import DateNavigator from '../Components/Common/DateNavigator'
 import { Circle, RotateCcw } from 'lucide-react';
 import List from '../Components/Attendance/List';
-import api from '../Components/API/Api';
+import api from '../Components/API/Api.jsx';
 function AttendancePage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [courses,setCourses]=useState([]);

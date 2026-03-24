@@ -1,6 +1,6 @@
 import { BadgeCheck, BadgeX, Clock } from 'lucide-react'
 import React, { useEffect, useState } from 'react'
-import api from '../API/Api';
+import api from '../API/Api.jsx';
 import Box from "@mui/material/Box";
 import CircularProgress from '@mui/material/CircularProgress';
 
