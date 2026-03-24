@@ -2,7 +2,7 @@ import React from 'react';
 import { CircleCheck, Clock, User, XCircle } from 'lucide-react';
 import MyBarChart from '../Components/Chart/MyBarChart';
 import { TrendingUp } from 'lucide-react';
-import CountingNumber from '../components/CountingNumber';
+import CountingNumber from '../Components/CountingNumber';
 import ClassChart from '../Components/Chart/ClassChart';
 import Resent_absent from '../Dashboard/Resent_absent';
 
