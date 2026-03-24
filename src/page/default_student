@@ -1,0 +1,276 @@
+import { Search } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import api from "../Components/API/Api";
+import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
+
+function StudentPage() {
+  const [addsutdents, setStudents] = useState(false);
+  const [students_save, setStudents_save] = useState([]);
+  const [courses, setCourses] = useState([]);
+
+  // input states
+  const [name_student, setNamestudents] = useState("");
+  const [phone, setPhone] = useState("");
+  const [parent, setParent] = useState("");
+  const [address, setAddress] = useState("");
+  const [gender, setGender] = useState("");
+  const [course_id, setCourseId] = useState("");
+  const [loading,setLoading]=useState(true);
+
+  const toggle = () => {
+    setStudents(!addsutdents);
+  };
+
+  // ---------------------------
+  // Save Student
+  // ---------------------------
+  const handesave = async (e) => {
+    e.preventDefault();
+
+    if (!name_student || !phone || !parent || !address || !gender || !course_id)
+      return alert("Please fill all fields");
+
+    try {
+      await api.post("/api/student", {
+        name_student,
+        gender,
+        phone,
+        parent,
+        address,
+        course_id,
+      });
+      setNamestudents("");
+      setPhone("");
+      setParent("");
+      setAddress("");
+      setGender("");
+      setCourseId("");
+
+      setStudents(false);
+
+      fetchStudent();
+    } catch (error) {
+      console.log(error.response.data);
+      alert(error.response.data.message);
+    }
+  };
+  // ---------------------------
+  // Fetch Students
+  // ---------------------------
+  const fetchStudent = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get("/api/student");
+      setStudents_save(res.data);
+    } catch (error) {
+       console.log(error.response.data);
+      alert(error.response.data.message);
+    }finally{
+      setLoading(false);
+    }
+  };
+  // ---------------------------
+  // Fetch Courses
+  // ---------------------------
+  const fetchCourse = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get("/api/course");
+      setCourses(res.data);
+    } catch (error) {
+      console.log(error.response.data);
+      alert(error.response.data.message);
+    }finally{
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    fetchStudent();
+    fetchCourse();
+  }, []);
+  if(loading){
+    return(
+      <Box 
+      sx={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        height: "80vh",
+      }}
+    >
+      <CircularProgress size={50}/>
+    </Box>
+    )
+  }
+  return (
+    <div className="p-6">
+
+      {/* Header */}
+      <div className="flex justify-between mb-5">
+        <div>
+          <h1 className="font-bold text-2xl">Students</h1>
+          <p className="text-gray-600">Students register</p>
+        </div>
+
+        <button
+          onClick={toggle}
+          className="px-5 py-2 bg-blue-500 text-white rounded-lg font-medium cursor-pointer"
+        >
+          + Add students
+        </button>
+      </div>
+
+      {/* Search */}
+      <div className="flex justify-between gap-4">
+        <div className="relative w-full mb-5">
+          <input
+            type="text"
+            placeholder="Search students..."
+            className="w-full border border-gray-300 rounded-2xl py-2.5 pl-10 pr-4 text-sm outline-none"
+          />
+          <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+        </div>
+      </div>
+
+      {/* Table Header */}
+      <div className="grid grid-cols-7 gap-4 px-6 py-4 text-sm font-medium text-gray-500 border border-gray-200 rounded-t-lg">
+        <div>Name student</div>
+        <div>Course</div>
+        <div>Gender</div>
+        <div>Phone</div>
+        <div>Parent</div>
+        <div>Address</div>
+        <div className="text-right">Action</div>
+      </div>
+
+      {/* Students List */}
+      {students_save.map((value) => (
+        <div key={value.id} className="bg-white border border-gray-200">
+          <div className="grid grid-cols-7 gap-4 px-6 py-4 items-center text-sm hover:bg-gray-50">
+
+            {/* Name */}
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-semibold">
+                {value.name_student
+                  ?.split(" ")
+                  .map((n) => n[0])
+                  .join("")}
+              </div>
+              <span className="font-medium">{value.name_student}</span>
+            </div>
+
+            {/* Course */}
+            <div>
+              <span className="px-3 py-1 rounded-full bg-gray-100 text-xs">
+                {value.courses?.map((c) => c.name_course).join(", ")}
+              </span>
+            </div>
+
+            <div>{value.gender}</div>
+            <div>{value.phone}</div>
+            <div>{value.parent}</div>
+            <div className="truncate">{value.address}</div>
+
+            <div className="flex gap-3 justify-end">
+              <button className="text-blue-500">✏️</button>
+              <button className="text-red-500">🗑️</button>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {/* Modal Add Student */}
+      {addsutdents && (
+        <div
+          className="fixed flex justify-center items-center inset-0 z-50 bg-black/50"
+          onClick={toggle}
+        >
+          <div
+            className="bg-white shadow-lg w-[500px] p-7 rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <form onSubmit={handesave}>
+              <h1 className="text-center mb-4 font-bold text-2xl">
+                Add Student
+              </h1>
+
+              <input
+                type="text"
+                value={name_student}
+                onChange={(e) => setNamestudents(e.target.value)}
+                placeholder="Name Student"
+                className="mb-4 border p-2 w-full rounded-lg"
+              />
+
+              <select
+                value={course_id}
+                onChange={(e) => setCourseId(e.target.value)}
+                className="mb-4 border p-2 w-full rounded-lg"
+              >
+                <option value="">Select Course</option>
+
+                {courses.map((course) => (
+                  <option key={course.id} value={course.id}>
+                    {course.name_course}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                type="text"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Phone"
+                className="mb-4 border p-2 w-full rounded-lg"
+              />
+
+              <input
+                type="text"
+                value={parent}
+                onChange={(e) => setParent(e.target.value)}
+                placeholder="Parent"
+                className="mb-4 border p-2 w-full rounded-lg"
+              />
+
+              <input
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Address"
+                className="mb-4 border p-2 w-full rounded-lg"
+              />
+
+              <input
+                type="text"
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
+                placeholder="Gender"
+                className="mb-4 border p-2 w-full rounded-lg"
+              />
+
+              <div className="flex justify-between">
+                <button
+                  type="button"
+                  onClick={toggle}
+                  className="bg-red-500 text-white rounded-lg p-2 px-4 cursor-pointer"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="bg-green-500 text-white rounded-lg p-2 px-4 cursor-pointer"
+                >
+                  Save
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default StudentPage;
