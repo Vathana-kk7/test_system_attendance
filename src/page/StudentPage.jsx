@@ -5,8 +5,11 @@ import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import { Crude, CreateStudent, UpdataStudent, DeleteStudent } from "../Components/Students/Crude";
 import "../styles/main.css";
+import PaginationControlled from "../Components/Pagination/Pagination.jsx";
 
 function StudentPage() {
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 8;
   const [loading, setLoading]               = useState(true);
   const [search, setSearch]                 = useState("");
   const [editId, setEditId]                 = useState(null);
@@ -23,6 +26,12 @@ function StudentPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const filteredStudents = Crude({ students: students_save, search });
+  
+  const startIndex = (page - 1) * itemsPerPage;
+  const paginatedStudents = filteredStudents.slice(
+    startIndex,
+    startIndex + itemsPerPage
+  );
 
   useEffect(() => { fetchStudent(); fetchCourse(); }, []);
 
@@ -56,16 +65,27 @@ function StudentPage() {
     e.preventDefault();
     if (!name_student || !phone || !parent || !address || !gender || (!editId && !course_id))
       return alert("Please fill all fields");
-    const data = { name_student, phone: String(phone), parent, address, gender, course_id };
+    const data = { 
+      name_student,
+      phone: String(phone),
+      parent,
+      address,
+      gender,
+      course_id
+     };
     try {
-      if (editId) { await UpdataStudent(editId, data, fetchStudent); }
-      else        { await CreateStudent(data, fetchStudent); }
+      if (editId){ 
+        await UpdataStudent(editId, data, fetchStudent);
+      } 
+      else{
+        await CreateStudent(data, fetchStudent); 
+      }
       toggleModal();
     } catch (error) {
       alert(error.response?.data?.message || "Error saving student");
     }
   };
-
+  //Edite
   const handleEdit = (student) => {
     setEditId(student.id);
     setNamestudents(student.name_student);
@@ -76,7 +96,7 @@ function StudentPage() {
     setCourseId(String(student.courses?.[0]?.id || ""));
     setStudents(true);
   };
-
+  //Delete
   const showDelete = (id) => { setDeleteId(id); setShowDeleteModal(true); };
 
   const confirmDelete = async () => {
@@ -129,12 +149,12 @@ function StudentPage() {
       </div>
 
       {/* Students List */}
-      {filteredStudents.length === 0 ? (
+      {paginatedStudents.length === 0 ? (
         <div className="text-center py-16 text-gray-400 border border-t-0 border-gray-200 rounded-b-xl">
           No students found
         </div>
       ) : (
-        filteredStudents.map((value) => (
+        paginatedStudents.map((value) => (
           <div key={value.id} className="bg-white border border-t-0 border-gray-200 last:rounded-b-xl">
             <div className="grid grid-cols-7 gap-4 px-6 py-4 items-center text-sm hover:bg-gray-50 transition">
               <div className="flex items-center gap-3">
@@ -317,7 +337,13 @@ function StudentPage() {
           </div>
         </div>
       )}
-
+      <div className='fixed bottom-8 right-8'>
+        <PaginationControlled
+           page={page}
+           setPage={setPage}
+           total={Math.ceil(filteredStudents.length / itemsPerPage)}
+         />
+      </div>
     </div>
   );
 }

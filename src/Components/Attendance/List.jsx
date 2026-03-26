@@ -3,11 +3,21 @@ import React, { useEffect, useState } from 'react'
 import api from '../API/api.jsx';
 import Box from "@mui/material/Box";
 import CircularProgress from '@mui/material/CircularProgress';
+import { Filter } from './Filter.js';
+import PaginationControlled from '../Pagination/Pagination.jsx';
 
-function List() {
+function List({select}) {
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 7;
   const [student, setStudent] = useState([]);
   const [loading, setLoading] = useState(true);
-
+  const filteredStudents =Filter({newfilte:student,select});
+  const startIndex = (page - 1) * itemsPerPage;
+  const paginatedStudents = filteredStudents.slice(
+    startIndex,
+    startIndex + itemsPerPage
+  );
+  
   useEffect(() => {
     const fetchAll = async () => {
       setLoading(true);
@@ -24,6 +34,9 @@ function List() {
 
     fetchAll();
   }, []);
+   useEffect(() => {
+    setPage(1);
+  }, [select]);
 
   if (loading) {
     return (
@@ -35,7 +48,7 @@ function List() {
 
   return (
     <div>
-      {student.map((stu) => {
+      {paginatedStudents.map((stu) => {
         // ✅ courses នៅក្នុង student object ហើយ
         const courses = stu.courses || [];
 
@@ -81,6 +94,14 @@ function List() {
           </div>
         )
       })}
+
+<div className='fixed bottom-5 right-8'>
+  <PaginationControlled
+     page={page}
+     setPage={setPage}
+     total={Math.ceil(filteredStudents.length / itemsPerPage)}
+   />
+</div>
     </div>
   )
 }

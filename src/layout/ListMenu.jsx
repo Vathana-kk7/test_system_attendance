@@ -11,7 +11,7 @@ function ListMenu() {
         {id:"Reports",label:"Reports",icons: <ChartSpline className='w-5 h-5' />,path:"/reports"},
     ];
   return (
-    <div className='bg-gradient-to-b w-70 from-gray-900 to-gray-800 h-screen fixed top-0 left-0 p-7'>
+    <div className='bg-gradient-to-b  w-70 from-gray-900 to-gray-800 h-screen fixed top-0 left-0 p-7 z-50'>
         <div className='flex items-center  border-b border-gray-700 pb-7'>
             <div className='absolute bg-sky-600 p-3.5 rounded-2xl'>
                 <div>

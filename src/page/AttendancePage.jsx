@@ -4,6 +4,7 @@ import { Circle, RotateCcw } from 'lucide-react';
 import List from '../Components/Attendance/List';
 import api from '../Components/API/api.jsx';
 function AttendancePage() {
+  const [select,setSelect]=useState("");
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [courses,setCourses]=useState([]);
 
@@ -40,14 +41,15 @@ function AttendancePage() {
         </button>
 
         {/* <div className='text-center p-2 border border-gray-300 px-15 rounded-2xl py-1 shadow bg-white'>All Classes</div> */}
-        <select className="border border-gray-300 p-2 rounded-2xl outline-none w-[150px]">
+        <select className="border border-gray-300 p-2 rounded-2xl outline-none w-[150px]"
+          onChange={(e)=>setSelect(e.target.value)}
+        >
           <option className="font-semibold mb-2">All Classes</option>
           {courses.map((course)=>(
             <option key={course.id} value={course.id}
               className="font-semibold mb-2">{course.name_course}
              </option>
           ))}
-          
         </select>
       </div>
 
@@ -82,7 +84,7 @@ function AttendancePage() {
         </div>
       </div>
       {/* List Attendents */}
-        <List/>
+        <List select={select}/>
     </div>
   )
 }

@@ -25,9 +25,9 @@ function MainLayout({ children }) {
   return (
     <div className="flex">
         {menuOpen && <ListMenu isOpen={menuOpen} />}
-      <div className={`${menuOpen ? 'ml-70' : 'ml-0'} flex-1`}>
-        <Hero onToggleMenu={toggleMenu} />
-        <div className="">  {/* Content area */}
+      <div className={`${menuOpen ? 'ml-70' : 'ml-0'} flex-1 transition-all duration-300`}>
+        <Hero onToggleMenu={toggleMenu} menuOpen={menuOpen} />
+        <div className="mt-16">  {/* Content area */}
           {children}
         </div>
       </div>
@@ -49,15 +49,15 @@ function AppRoutes() {
 
       
      <Route 
-      path="/dashboard" 
-      element={
-        <MainLayout>
-          <ProtectedRoute allowedRoles={["Teacher"]}>
-          <Dashboard />
-        </ProtectedRoute>
-        </MainLayout>
-      } 
-    />
+       path="/dashboard" 
+       element={
+         <MainLayout>
+           <ProtectedRoute allowedRoles={["Teacher"]}>
+           <Dashboard />
+         </ProtectedRoute>
+         </MainLayout>
+       } 
+     />
     </Routes>
   )
 }
