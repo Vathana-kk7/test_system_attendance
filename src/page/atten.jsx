@@ -65,47 +65,31 @@ function AttendancePage() {
 
   // ─── Save to database ─────────────────────────────────────────────────────
   const handleSave = async () => {
-  try {
-    if (!select) {
-      alert("Please select a course first!");
-      return;
+    try {
+      const dateStr = selectedDate.toISOString().split('T')[0];
+
+      // Merge local changes on top of loaded data (local wins)
+      const merged = [...loadedAttendance];
+      Object.entries(localAttendance).forEach(([studentId, status]) => {
+        const existing = merged.find(r => r.student_id == studentId);
+        const reason   = permissionNotes[studentId] || '';
+        if (!existing) merged.push({ student_id: parseInt(studentId), status, reason });
+        else { existing.status = status; existing.reason = reason; }
+      });
+
+      await api.post('/api/attendance', { date: dateStr, attendance: merged });
+      alert('Attendance saved successfully!');
+
+      // Sync loaded state with what was saved
+      setLoadedAttendance(merged);
+      setLocalAttendance({});
+      setPermissionNotes({});
+      setStats(getAttendanceStats(merged, students.length));
+    } catch (error) {
+      console.log(error);
+      alert('Failed to save attendance.');
     }
-
-    const dateStr = selectedDate.toISOString().split('T')[0];
-
-    // Merge local changes on top of loaded data
-    const merged = [...loadedAttendance];
-    Object.entries(localAttendance).forEach(([studentId, status]) => {
-      const existing = merged.find(r => r.student_id == studentId);
-      const reason   = permissionNotes[studentId] || '';
-      if (!existing) merged.push({ student_id: parseInt(studentId), status, reason });
-      else { existing.status = status; existing.reason = reason; }
-    });
-
-    // ✅ Send one request per student (matches Laravel's store())
-    await Promise.all(
-      merged.map((record) =>
-        api.post('/api/attendance', {
-          student_id: record.student_id,
-          course_id:  parseInt(select),   // from dropdown
-          date:       dateStr,
-          status:     record.status,
-          reason:     record.reason || '',
-        })
-      )
-    );
-
-    alert('Attendance saved successfully!');
-    setLoadedAttendance(merged);
-    setLocalAttendance({});
-    setPermissionNotes({});
-    setStats(getAttendanceStats(merged, students.length));
-
-  } catch (error) {
-    console.log(error);
-    alert('Failed to save attendance.');
-  }
-};
+  };
 
   // ─── Fetch courses ────────────────────────────────────────────────────────
   const fetchCourses = async () => {

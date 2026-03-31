@@ -26,6 +26,7 @@ function List({
 
   useEffect(() => { setPage(1); }, [select]);
 
+  // Local override takes priority over loaded DB data
   const getStatus = (stuId) => {
     if (localAttendance[stuId]) return localAttendance[stuId];
     const loaded = loadedAttendance.find(r => r.student_id == stuId);
@@ -52,8 +53,7 @@ function List({
   return (
     <div className='pb-24'>
       {paginatedStudents.map((stu) => {
-        // ✅ Deduplicate courses by id
-        const courses       = [...new Map((stu.courses || []).map(c => [c.id, c])).values()];
+        const courses       = stu.courses || [];
         const currentStatus = getStatus(stu.id);
 
         return (
