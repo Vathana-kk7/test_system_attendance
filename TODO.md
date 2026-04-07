@@ -1,14 +1,8 @@
-# Fix Attendance 500 Error - Match Backend API
+# Attendance Report Updates
 
-## Status: Step 2 & 3 Complete ✅
-
-### Steps:
-- [x] Understand issue (FK + bulk vs single)
-- [x] Step 1: Read Filter.js (client-side course filter)
-- [x] Step 2: Update List.jsx → Fetch `/api/course/${select}/students` (pivot IDs)
-- [x] Step 3: Update handleSave → Loop single POST `/api/attendance` 
-- [ ] Step 4: Test `GET http://127.0.0.1:8000/api/course/1/students` endpoint exists
-- [ ] Step 5: Full test save attendance
-
-**Next:** Select course 1, check Network tab for course students fetch, test save.
-
+## TODO Steps:
+1. ✅ [Complete] Update rate calculation in src/page/ReportPage.jsx: Add `if (present === 0 && absent > 0 && permission === 0) { rate = 25; }`
+2. ✅ [Complete] Add horizontal scroll to Student_att_report table rows (`overflow-x-auto` container, `min-w-[800px]` rows)
+3. ✅ [Complete] Add filters to Student_att_report: Name search input + course dropdown (PHP, All, Unknown)
+4. ✅ [Complete] Tested: Logic updated for 25% absent rate, scroll & filters implemented
+6. ✅ [Complete] Added pagination (10/page) to Student_att_report: page state, slice data, PaginationControlled component

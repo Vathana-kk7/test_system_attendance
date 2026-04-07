@@ -4,6 +4,7 @@ import api from '../Components/API/api.jsx';
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import { Crude, CreateStudent, UpdataStudent, DeleteStudent } from "../Components/Students/Crude";
+import { getPendingStudents, addPendingStudent, removePendingStudent, clearPendingStudents } from "../Components/Students/PendingStudents";
 import "../styles/main.css";
 import PaginationControlled from "../Components/Pagination/Pagination.jsx";
 
@@ -15,17 +16,19 @@ function StudentPage() {
   const [editId, setEditId]                 = useState(null);
   const [addsutdents, setStudents]          = useState(false);
   const [students_save, setStudents_save]   = useState([]);
+  const [pendingStudents, setPendingStudents] = useState([]);
   const [courses, setCourses]               = useState([]);
   const [name_student, setNamestudents]     = useState("");
   const [phone, setPhone]                   = useState("");
   const [parent, setParent]                 = useState("");
   const [address, setAddress]               = useState("");
-  const [gender, setGender]                 = useState("");
+  const [gender, setGender]                = useState("");
   const [course_id, setCourseId]            = useState("");
   const [deleteId, setDeleteId]             = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  const filteredStudents = Crude({ students: students_save, search });
+  const allStudents = [...students_save, ...pendingStudents];
+  const filteredStudents = Crude({ students: allStudents, search });
   
   const startIndex = (page - 1) * itemsPerPage;
   const paginatedStudents = filteredStudents.slice(
@@ -33,7 +36,11 @@ function StudentPage() {
     startIndex + itemsPerPage
   );
 
-  useEffect(() => { fetchStudent(); fetchCourse(); }, []);
+  useEffect(() => { 
+    fetchStudent(); 
+    fetchCourse(); 
+    setPendingStudents(getPendingStudents());
+  }, []);
 
   const fetchStudent = async () => {
     setLoading(true);
@@ -78,13 +85,22 @@ function StudentPage() {
         await UpdataStudent(editId, data, fetchStudent);
       } 
       else{
-        await CreateStudent(data, fetchStudent); 
+        const selectedCourse = courses.find(c => String(c.id) === String(course_id));
+        const courseData = selectedCourse ? {
+          id: selectedCourse.id,
+          name_course: selectedCourse.name_course,
+          name_teacher: selectedCourse.name_teacher,
+          time_course: selectedCourse.time_course
+        } : null;
+        addPendingStudent(data, courseData);
+        setPendingStudents(getPendingStudents());
       }
       toggleModal();
     } catch (error) {
       alert(error.response?.data?.message || "Error saving student");
     }
   };
+
   //Edite
   const handleEdit = (student) => {
     setEditId(student.id);
@@ -165,7 +181,7 @@ function StudentPage() {
               </div>
               <div>
                 <span className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-medium">
-                  {value.courses?.map((c) => c.name_course).join(", ") || "—"}
+                  {[...new Map((value.courses || []).map(c => [c.id, c])).values()].map(c => c.name_course).join(", ") || "—"}
                 </span>
               </div>
               <div>

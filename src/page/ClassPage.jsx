@@ -261,7 +261,7 @@ function ClassPage() {
           {datastudent.map((course)=>(
             <option key={course.id} value={course.id}
               className="font-semibold mb-2">{course.name_course}
-             </option>
+            </option>
           ))}
           
         </select>

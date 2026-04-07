@@ -3,28 +3,15 @@ import * as React from "react";
 import Box from "@mui/material/Box";
 import { BarChart } from "@mui/x-charts/BarChart";
 
-export default function AttendanceChart() {
+export default function AttendanceChart({ chartData }) {
 
-  // 14-day data
-  const presentData = [0,0,0,0,0,0,0,7,6,8,5,0,0,0];
-  const absentData = [0,0,0,0,0,0,0,4,2,3,2,0,0,0];
-  const permissionData = [0,0,0,0,0,0,0,1,1,1,1,0,0,0];
+  const presentData = chartData?.presentData?.length > 0 ? chartData.presentData : [0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+  const absentData = chartData?.absentData?.length > 0 ? chartData.absentData : [0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+  const permissionData = chartData?.permissionData?.length > 0 ? chartData.permissionData : [0,0,0,0,0,0,0,0,0,0,0,0,0,0];
 
-  const xLabels = [
-    "Feb 23",
-    "Feb 24",
-    "Feb 25",
-    "Feb 26",
-    "Feb 27",
-    "Feb 28",
-    "Mar 1",
-    "Mar 2",
-    "Mar 3",
-    "Mar 4",
-    "Mar 5",
-    "Mar 6",
-    "Mar 7",
-    "Mar 8",
+  const xLabels = chartData?.xLabels?.length > 0 ? chartData.xLabels : [
+    "Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7",
+    "Day 8", "Day 9", "Day 10", "Day 11", "Day 12", "Day 13", "Day 14"
   ];
 
   return (

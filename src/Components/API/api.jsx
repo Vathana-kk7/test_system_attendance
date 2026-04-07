@@ -18,7 +18,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-    baseURL: "https://laravel-test-api-qpy0.onrender.com"
+    baseURL: "http://127.0.0.1:8000"
 });
 // https://laravel-test-api-qpy0.onrender.com/api/student
 // http://127.0.0.1:8000

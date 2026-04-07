@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react'
-import DateNavigator from '../Components/Common/DateNavigator'
-import { Circle, RotateCcw } from 'lucide-react';
+import DateNavigator from '../Components/Common/DateNavigator';
+import { Box, Circle, FileDown, RotateCcw, Eye } from 'lucide-react';
 import List from '../Components/Attendance/List';
 import api from '../Components/API/api.jsx';
+import { CircularProgress } from '@mui/material';
+import { getPendingStudents, clearPendingStudents } from '../Components/Students/PendingStudents';
+import { generateLocally } from '../Components/Utils/pdfGenerator';
 
 const getAttendanceStats = (attendanceArray, total) => {
   const present    = attendanceArray.filter(r => r.status === 'present').length;
@@ -17,50 +20,71 @@ function AttendancePage() {
   const [selectedDate, setSelectedDate]                       = useState(new Date());
   const [courses, setCourses]                                 = useState([]);
   const [students, setStudents]                               = useState([]);
+  const [pendingStudents, setPendingStudents]                 = useState([]);
   const [localAttendance, setLocalAttendance]                 = useState({});
   const [loadedAttendance, setLoadedAttendance]               = useState([]);
   const [permissionNotes, setPermissionNotes]                 = useState({});
   const [permissionInputVisible, setPermissionInputVisible]   = useState(null);
+  const [loading, setLoading]                                   = useState(false);
   const [stats, setStats] = useState({ present: 0, absent: 0, permission: 0, unmarked: 0 });
 
   // ─── Mark single student ───────────────────────────────────────────────────
   const handleMark = (studentId, status, reason = '') => {
-    setLocalAttendance(prev => ({ ...prev, [studentId]: status }));
-    if (reason) setPermissionNotes(prev => ({ ...prev, [studentId]: reason }));
+  setLocalAttendance(prev => ({
+    ...prev,
+    [studentId]: status
+  }));
 
-    const merged   = [...loadedAttendance];
-    const existing = merged.find(r => r.student_id == studentId);
-    if (!existing) merged.push({ student_id: parseInt(studentId), status, reason });
-    else { existing.status = status; existing.reason = reason; }
+  if (reason) {
+    setPermissionNotes(prev => ({
+      ...prev,
+      [studentId]: reason
+    }));
+  }
 
-    setStats(getAttendanceStats(merged, students.length));
-    setPermissionInputVisible(null);
-  };
+  const allStudents = [...students, ...pendingStudents];
+  const preview = Object.entries({
+    ...Object.fromEntries(
+      loadedAttendance.map(r => [r.student_id, r.status])
+    ),
+    ...localAttendance,
+    [studentId]: status
+  }).map(([id, status]) => ({
+    student_id: parseInt(id),
+    status
+  }));
+
+  setStats(getAttendanceStats(preview, allStudents.length));
+  setPermissionInputVisible(null);
+};
 
   // ─── All Present ──────────────────────────────────────────────────────────
   const handleAllPresent = () => {
+    const allStudents = [...students, ...pendingStudents];
     const newLocal = {};
-    students.forEach(s => { newLocal[s.id] = 'present'; });
+    allStudents.forEach(s => { newLocal[s.id] = 'present'; });
     setLocalAttendance(newLocal);
-    const merged = students.map(s => ({ student_id: s.id, status: 'present', reason: '' }));
-    setStats(getAttendanceStats(merged, students.length));
+    const merged = allStudents.map(s => ({ student_id: s.id, status: 'present', reason: '' }));
+    setStats(getAttendanceStats(merged, allStudents.length));
   };
 
   // ─── All Absent ───────────────────────────────────────────────────────────
   const handleAllAbsent = () => {
+    const allStudents = [...students, ...pendingStudents];
     const newLocal = {};
-    students.forEach(s => { newLocal[s.id] = 'absent'; });
+    allStudents.forEach(s => { newLocal[s.id] = 'absent'; });
     setLocalAttendance(newLocal);
-    const merged = students.map(s => ({ student_id: s.id, status: 'absent', reason: '' }));
-    setStats(getAttendanceStats(merged, students.length));
+    const merged = allStudents.map(s => ({ student_id: s.id, status: 'absent', reason: '' }));
+    setStats(getAttendanceStats(merged, allStudents.length));
   };
 
   // ─── Reset ────────────────────────────────────────────────────────────────
   const handleReset = () => {
+    const allStudents = [...students, ...pendingStudents];
     setLocalAttendance({});
     setPermissionNotes({});
     setPermissionInputVisible(null);
-    setStats(getAttendanceStats(loadedAttendance, students.length));
+    setStats(getAttendanceStats(loadedAttendance, allStudents.length));
   };
 
   // ─── Save to database ─────────────────────────────────────────────────────
@@ -70,36 +94,100 @@ function AttendancePage() {
       alert("Please select a course first!");
       return;
     }
-
     const dateStr = selectedDate.toISOString().split('T')[0];
+    const courseId = parseInt(select);
 
-    // Merge local changes on top of loaded data
-    const merged = [...loadedAttendance];
-    Object.entries(localAttendance).forEach(([studentId, status]) => {
-      const existing = merged.find(r => r.student_id == studentId);
-      const reason   = permissionNotes[studentId] || '';
-      if (!existing) merged.push({ student_id: parseInt(studentId), status, reason });
-      else { existing.status = status; existing.reason = reason; }
-    });
+    // Save pending students to database first
+    if (pendingStudents.length > 0) {
+      await Promise.all(
+        pendingStudents.map(student => 
+          api.post('/api/student', {
+            name_student: student.name_student,
+            phone: student.phone,
+            parent: student.parent,
+            address: student.address,
+            gender: student.gender,
+            course_id: student.course_id
+          })
+        )
+      );
+      clearPendingStudents();
+      setPendingStudents([]);
+      await fetchStudents();
+    }
 
-    // ✅ Send one request per student (matches Laravel's store())
-    await Promise.all(
-      merged.map((record) =>
-        api.post('/api/attendance', {
-          student_id: record.student_id,
-          course_id:  parseInt(select),   // from dropdown
-          date:       dateStr,
-          status:     record.status,
-          reason:     record.reason || '',
-        })
-      )
+    // Only process students that belong to the selected course
+    const studentsInCourse = students.filter(s => 
+      s.courses && s.courses.some(c => Number(c.id) === courseId)
     );
+    const validStudentIds = studentsInCourse.map(s => s.id);
+    
+    // Build existing records lookup for selected course only
+    const existingByKey = {};
+    loadedAttendance
+      .filter(rec => rec.course_id === courseId)
+      .forEach(rec => {
+        const key = `${rec.student_id}-${rec.course_id}`;
+        existingByKey[key] = rec;
+      });
+    console.log('existingByKey:', existingByKey);
+
+    // Separate into updates and creates
+    const updates = [];
+    const creates = [];
+    
+    Object.entries(localAttendance)
+      .filter(([studentId]) => validStudentIds.includes(parseInt(studentId)))
+      .forEach(([studentId, status]) => {
+        console.log('Processing studentId:', studentId, 'status:', status);
+        const record = {
+          student_id: parseInt(studentId),
+          course_id: courseId,
+          date: dateStr,
+          status,
+          reason: permissionNotes[studentId] || '',
+        };
+        
+        const key = `${studentId}-${courseId}`;
+        if (existingByKey[key]) {
+          updates.push({ existing: existingByKey[key], newData: record });
+        } else {
+          creates.push(record);
+        }
+      });
+
+    if (updates.length === 0 && creates.length === 0) {
+      alert("No changes to save!");
+      return;
+    }
+
+    // Process updates (existing records)
+    if (updates.length > 0) {
+      await Promise.all(
+        updates.map(({ existing, newData }) =>
+          api.put(`/api/attendance/${existing.id}`, newData)
+        )
+      );
+    }
+
+    // Process creates (new records)
+    if (creates.length > 0) {
+      await Promise.all(
+        creates.map(record =>
+          api.post('/api/attendance', record)
+        )
+      );
+    }
 
     alert('Attendance saved successfully!');
-    setLoadedAttendance(merged);
+
+    // ✅ refresh AFTER save
+    
+    await fetchAttendance();
+
+    // ✅ clear UI state
     setLocalAttendance({});
     setPermissionNotes({});
-    setStats(getAttendanceStats(merged, students.length));
 
   } catch (error) {
     console.log(error);
@@ -107,6 +195,52 @@ function AttendancePage() {
   }
 };
 
+  const handleSavePDF = async () => {
+    const dateStr = selectedDate.toISOString().split('T')[0];
+    const selectedCourse = courses.find(c => c.id === parseInt(select));
+    const courseName = selectedCourse?.name_course || 'All Classes';
+    
+    try {
+      const res = await api.get(`/api/attendance?date=${dateStr}`);
+      const data = res.data;
+      
+      if (!data || data.length === 0) {
+        alert('No attendance data for this date');
+        return;
+      }
+      
+      const doc = generateLocally(data, dateStr, courseName);
+      doc.save(`attendance_${dateStr}.pdf`);
+    } catch (error) {
+      console.error('Save PDF error:', error);
+      alert('Failed to save PDF');
+    }
+  };
+
+  const handlePreviewPDF = async () => {
+    const dateStr = selectedDate.toISOString().split('T')[0];
+    const selectedCourse = courses.find(c => c.id === parseInt(select));
+    const courseName = selectedCourse?.name_course || 'All Classes';
+    
+    try {
+      const res = await api.get(`/api/attendance?date=${dateStr}`);
+      const data = res.data;
+      
+      if (!data || data.length === 0) {
+        alert('No attendance data for this date');
+        return;
+      }
+      
+      const doc = generateLocally(data, dateStr, courseName);
+      const blob = doc.output('blob');
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error('Preview PDF error:', error);
+      alert('Failed to preview PDF');
+    }
+  };
+  
   // ─── Fetch courses ────────────────────────────────────────────────────────
   const fetchCourses = async () => {
     try {
@@ -129,6 +263,7 @@ function AttendancePage() {
 
   // ─── Fetch attendance for selected date ───────────────────────────────────
   const fetchAttendance = async () => {
+    const allStudents = [...students, ...pendingStudents];
     try {
       const dateStr = selectedDate.toISOString().split('T')[0];
       const res = await api.get(`/api/attendance?date=${dateStr}`);
@@ -136,22 +271,31 @@ function AttendancePage() {
       setLocalAttendance({});
       setPermissionNotes({});
       setPermissionInputVisible(null);
-      setStats(getAttendanceStats(res.data, students.length));
+      setStats(getAttendanceStats(res.data, allStudents.length));
     } catch (error) {
       console.log(error);
       setLoadedAttendance([]);
-      setStats({ present: 0, absent: 0, permission: 0, unmarked: students.length });
+      setStats({ present: 0, absent: 0, permission: 0, unmarked: allStudents.length });
     }
   };
 
   useEffect(() => {
     fetchCourses();
     fetchStudents();
+    setPendingStudents(getPendingStudents());
   }, []);
 
   useEffect(() => {
-    if (students.length > 0) fetchAttendance();
-  }, [selectedDate, students.length]);
+    if (students.length > 0 || pendingStudents.length > 0) fetchAttendance();
+  }, [selectedDate, students.length, pendingStudents.length]);
+
+  if (loading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "50vh" }}>
+        <CircularProgress size={50} />
+      </Box>
+    );
+  }
 
   return (
     <div className='p-6'>
@@ -161,7 +305,8 @@ function AttendancePage() {
       </div>
 
       {/* ── Top controls ── */}
-      <div className='flex gap-5 items-center mb-4'>
+      <div className='flex justify-between items-center mb-5'>
+        <div className='flex gap-5 items-center mb-4'>
         <DateNavigator value={selectedDate} onChange={setSelectedDate} />
         <button
           type='button'
@@ -182,6 +327,23 @@ function AttendancePage() {
             </option>
           ))}
         </select>
+      </div>
+      <div className="flex gap-2">
+      <button 
+        onClick={handlePreviewPDF}
+        className="flex items-center gap-2 my-2 px-4 py-2 cursor-pointer rounded-xl bg-blue-500 hover:bg-blue-600 text-white shadow-md transition duration-200"
+      >
+        <Eye size={18} />
+        Preview PDF
+      </button>
+      <button 
+        onClick={handleSavePDF}
+        className="flex items-center gap-2 my-2 px-4 py-2 cursor-pointer rounded-xl bg-green-500 hover:bg-green-600 text-white shadow-md transition duration-200"
+      >
+        <FileDown size={18} />
+        Save PDF
+      </button>
+    </div>
       </div>
 
       {/* ── Stats bar ── */}
@@ -227,7 +389,7 @@ function AttendancePage() {
       {/* ── List ── */}
       <List
         select={select}
-        students={students}
+        students={[...students, ...pendingStudents]}
         onMarkAttendance={handleMark}
         localAttendance={localAttendance}
         loadedAttendance={loadedAttendance}
