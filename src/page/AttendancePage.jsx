@@ -15,6 +15,11 @@ const getAttendanceStats = (attendanceArray, total) => {
   return { present, absent, permission, unmarked };
 };
 
+const isToday = (date) => {
+  const today = new Date();
+  return date.toDateString() === today.toDateString();
+};
+
 function AttendancePage() {
   const [select, setSelect]                                   = useState("");
   const [selectedDate, setSelectedDate]                       = useState(new Date());
@@ -28,54 +33,157 @@ function AttendancePage() {
   const [loading, setLoading]                                   = useState(false);
   const [stats, setStats] = useState({ present: 0, absent: 0, permission: 0, unmarked: 0 });
 
+  const saveBulkAttendance = async (attendanceMap, notes = {}) => {
+    if (!select) return;
+    
+    const dateStr = selectedDate.toISOString().split('T')[0];
+    const courseId = parseInt(select);
+    const allStudents = [...students, ...pendingStudents];
+    
+    const studentsInCourse = allStudents.filter(s => 
+      s.courses && s.courses.some(c => Number(c.id) === courseId)
+    );
+    const validStudentIds = studentsInCourse.map(s => s.id);
+
+    const existingByKey = {};
+    loadedAttendance
+      .filter(rec => rec.course_id === courseId)
+      .forEach(rec => {
+        const key = `${rec.student_id}-${rec.course_id}`;
+        existingByKey[key] = rec;
+      });
+
+    const updates = [];
+    const creates = [];
+
+    Object.entries(attendanceMap)
+      .filter(([studentId]) => validStudentIds.includes(parseInt(studentId)))
+      .forEach(([studentId, status]) => {
+        const record = {
+          student_id: parseInt(studentId),
+          course_id: courseId,
+          date: dateStr,
+          status,
+          reason: notes[studentId] || '',
+        };
+        
+        const key = `${studentId}-${courseId}`;
+        if (existingByKey[key]) {
+          updates.push({ existing: existingByKey[key], newData: record });
+        } else {
+          creates.push(record);
+        }
+      });
+
+    if (updates.length > 0) {
+      await Promise.all(
+        updates.map(({ existing, newData }) =>
+          api.put(`/api/attendance/${existing.id}`, newData)
+        )
+      );
+    }
+
+    if (creates.length > 0) {
+      await Promise.all(
+        creates.map(record =>
+          api.post('/api/attendance', record)
+        )
+      );
+    }
+
+    await fetchAttendance();
+  };
+
   // ─── Mark single student ───────────────────────────────────────────────────
-  const handleMark = (studentId, status, reason = '') => {
-  setLocalAttendance(prev => ({
-    ...prev,
-    [studentId]: status
-  }));
-
-  if (reason) {
-    setPermissionNotes(prev => ({
+  const handleMark = async (studentId, status, reason = '') => {
+    setLocalAttendance(prev => ({
       ...prev,
-      [studentId]: reason
+      [studentId]: status
     }));
-  }
 
-  const allStudents = [...students, ...pendingStudents];
-  const preview = Object.entries({
-    ...Object.fromEntries(
-      loadedAttendance.map(r => [r.student_id, r.status])
-    ),
-    ...localAttendance,
-    [studentId]: status
-  }).map(([id, status]) => ({
-    student_id: parseInt(id),
-    status
-  }));
+    if (reason) {
+      setPermissionNotes(prev => ({
+        ...prev,
+        [studentId]: reason
+      }));
+    }
 
-  setStats(getAttendanceStats(preview, allStudents.length));
-  setPermissionInputVisible(null);
-};
+    const allStudents = [...students, ...pendingStudents];
+    const preview = Object.entries({
+      ...Object.fromEntries(
+        loadedAttendance.map(r => [r.student_id, r.status])
+      ),
+      ...localAttendance,
+      [studentId]: status
+    }).map(([id, status]) => ({
+      student_id: parseInt(id),
+      status
+    }));
+
+    setStats(getAttendanceStats(preview, allStudents.length));
+    setPermissionInputVisible(null);
+
+    // Auto-save to database if date is not today
+    if (!isToday(selectedDate) && select) {
+      const dateStr = selectedDate.toISOString().split('T')[0];
+      const courseId = parseInt(select);
+      
+      const studentsInCourse = allStudents.filter(s => 
+        s.courses && s.courses.some(c => Number(c.id) === courseId)
+      );
+      if (!studentsInCourse.some(s => String(s.id) === String(studentId))) return;
+
+      const existing = loadedAttendance.find(
+        r => r.student_id === parseInt(studentId) && r.course_id === courseId
+      );
+
+      const record = {
+        student_id: parseInt(studentId),
+        course_id: courseId,
+        date: dateStr,
+        status,
+        reason: reason || '',
+      };
+
+      try {
+        if (existing) {
+          await api.put(`/api/attendance/${existing.id}`, record);
+        } else {
+          await api.post('/api/attendance', record);
+        }
+        await fetchAttendance();
+      } catch (error) {
+        console.error('Auto-save failed:', error);
+      }
+    }
+  };
 
   // ─── All Present ──────────────────────────────────────────────────────────
-  const handleAllPresent = () => {
+  const handleAllPresent = async () => {
     const allStudents = [...students, ...pendingStudents];
     const newLocal = {};
     allStudents.forEach(s => { newLocal[s.id] = 'present'; });
     setLocalAttendance(newLocal);
     const merged = allStudents.map(s => ({ student_id: s.id, status: 'present', reason: '' }));
     setStats(getAttendanceStats(merged, allStudents.length));
+
+    if (!isToday(selectedDate) && select) {
+      await saveBulkAttendance(newLocal);
+    }
   };
 
   // ─── All Absent ───────────────────────────────────────────────────────────
-  const handleAllAbsent = () => {
+  const handleAllAbsent = async () => {
     const allStudents = [...students, ...pendingStudents];
     const newLocal = {};
     allStudents.forEach(s => { newLocal[s.id] = 'absent'; });
     setLocalAttendance(newLocal);
     const merged = allStudents.map(s => ({ student_id: s.id, status: 'absent', reason: '' }));
     setStats(getAttendanceStats(merged, allStudents.length));
+
+    if (!isToday(selectedDate) && select) {
+      await saveBulkAttendance(newLocal);
+    }
   };
 
   // ─── Reset ────────────────────────────────────────────────────────────────
