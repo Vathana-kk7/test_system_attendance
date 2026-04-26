@@ -1,44 +1,46 @@
-import { Search, X, UserPlus, Trash2 } from "lucide-react";
+import { Search, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import api from '../Components/API/api.jsx';
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import { Crude, CreateStudent, UpdataStudent, DeleteStudent } from "../Components/Students/Crude";
-import { getPendingStudents, addPendingStudent, removePendingStudent, clearPendingStudents } from "../Components/Students/PendingStudents";
+import {
+  getPendingStudents,
+  addPendingStudent,
+  removePendingStudent,
+  updatePendingStudent,
+  clearPendingStudents,
+} from "../Components/Students/PendingStudents";
 import "../styles/main.css";
 import PaginationControlled from "../Components/Pagination/Pagination.jsx";
 
 function StudentPage() {
-  const [page, setPage] = useState(1);
-  const itemsPerPage = 8;
-  const [loading, setLoading]               = useState(true);
-  const [search, setSearch]                 = useState("");
-  const [editId, setEditId]                 = useState(null);
-  const [addsutdents, setStudents]          = useState(false);
-  const [students_save, setStudents_save]   = useState([]);
+  const [page, setPage]                       = useState(1);
+  const itemsPerPage                           = 8;
+  const [loading, setLoading]                 = useState(true);
+  const [search, setSearch]                   = useState("");
+  const [editId, setEditId]                   = useState(null);
+  const [addsutdents, setStudents]            = useState(false);
+  const [students_save, setStudents_save]     = useState([]);
   const [pendingStudents, setPendingStudents] = useState([]);
-  const [courses, setCourses]               = useState([]);
-  const [name_student, setNamestudents]     = useState("");
-  const [phone, setPhone]                   = useState("");
-  const [parent, setParent]                 = useState("");
-  const [address, setAddress]               = useState("");
-  const [gender, setGender]                = useState("");
-  const [course_id, setCourseId]            = useState("");
-  const [deleteId, setDeleteId]             = useState(null);
+  const [courses, setCourses]                 = useState([]);
+  const [name_student, setNamestudents]       = useState("");
+  const [phone, setPhone]                     = useState("");
+  const [parent, setParent]                   = useState("");
+  const [address, setAddress]                 = useState("");
+  const [gender, setGender]                   = useState("");
+  const [course_id, setCourseId]              = useState("");
+  const [deleteId, setDeleteId]               = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  const allStudents = [...students_save, ...pendingStudents];
+  const allStudents      = [...students_save, ...pendingStudents];
   const filteredStudents = Crude({ students: allStudents, search });
-  
-  const startIndex = (page - 1) * itemsPerPage;
-  const paginatedStudents = filteredStudents.slice(
-    startIndex,
-    startIndex + itemsPerPage
-  );
+  const startIndex       = (page - 1) * itemsPerPage;
+  const paginatedStudents = filteredStudents.slice(startIndex, startIndex + itemsPerPage);
 
-  useEffect(() => { 
-    fetchStudent(); 
-    fetchCourse(); 
+  useEffect(() => {
+    fetchStudent();
+    fetchCourse();
     setPendingStudents(getPendingStudents());
   }, []);
 
@@ -49,7 +51,9 @@ function StudentPage() {
       setStudents_save(res.data);
     } catch (error) {
       alert(error.response?.data?.message || "Error fetching students");
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchCourse = async () => {
@@ -61,37 +65,67 @@ function StudentPage() {
     }
   };
 
-  const toggleModal = () => { resetForm(); setStudents(!addsutdents); };
-
-  const resetForm = () => {
-    setNamestudents(""); setPhone(""); setParent("");
-    setAddress(""); setGender(""); setCourseId(""); setEditId(null);
+  const toggleModal = () => {
+    resetForm();
+    setStudents((prev) => !prev);
   };
 
+  const resetForm = () => {
+    setNamestudents("");
+    setPhone("");
+    setParent("");
+    setAddress("");
+    setGender("");
+    setCourseId("");
+    setEditId(null);
+  };
+
+  // ── Resolve course object from current courses list ──────────────────────
+  const resolveCourse = (id) => {
+    const selected = courses.find((c) => String(c.id) === String(id));
+    return selected
+      ? {
+          id: selected.id,
+          name_course: selected.name_course,
+          name_teacher: selected.name_teacher,
+          time_course: selected.time_course,
+        }
+      : null;
+  };
+
+  // ── Save (create or update) ───────────────────────────────────────────────
   const handesave = async (e) => {
     e.preventDefault();
+
     if (!name_student || !phone || !parent || !address || !gender || (!editId && !course_id))
       return alert("Please fill all fields");
-    const data = { 
+
+    const data = {
       name_student,
       phone: String(phone),
       parent,
       address,
       gender,
-      course_id
-     };
+      course_id,
+    };
+
     try {
-      if (editId){ 
-        await UpdataStudent(editId, data, fetchStudent);
-      } 
-      else{
-        const selectedCourse = courses.find(c => String(c.id) === String(course_id));
-        const courseData = selectedCourse ? {
-          id: selectedCourse.id,
-          name_course: selectedCourse.name_course,
-          name_teacher: selectedCourse.name_teacher,
-          time_course: selectedCourse.time_course
-        } : null;
+      if (editId) {
+        if (String(editId).startsWith("pending_")) {
+          // ── Update a pending (offline) student ──
+          const courseData = course_id ? resolveCourse(course_id) : null;
+          updatePendingStudent(editId, {
+            ...data,
+            courses: courseData ? [courseData] : [],
+          });
+          setPendingStudents(getPendingStudents());
+        } else {
+          // ── Update a saved (server) student ──
+          await UpdataStudent(editId, data, fetchStudent);
+        }
+      } else {
+        // ── Create new pending student ──
+        const courseData = resolveCourse(course_id);
         addPendingStudent(data, courseData);
         setPendingStudents(getPendingStudents());
       }
@@ -101,34 +135,47 @@ function StudentPage() {
     }
   };
 
-  //Edite
+  // ── Edit ─────────────────────────────────────────────────────────────────
   const handleEdit = (student) => {
+    const courseId = student.course_id || student.courses?.[0]?.id || "";
     setEditId(student.id);
     setNamestudents(student.name_student);
     setPhone(student.phone);
     setParent(student.parent);
     setAddress(student.address);
     setGender(student.gender);
-    setCourseId(String(student.courses?.[0]?.id || ""));
+    setCourseId(String(courseId));
     setStudents(true);
   };
-  //Delete
-  const showDelete = (id) => { setDeleteId(id); setShowDeleteModal(true); };
 
+  // ── Delete ────────────────────────────────────────────────────────────────
+  const showDelete = (id) => {
+    setDeleteId(id);
+    setShowDeleteModal(true);
+  };
+
+  // FIX: handle pending students locally; server students via API
   const confirmDelete = async () => {
-    await DeleteStudent(deleteId, fetchStudent);
+    if (String(deleteId).startsWith("pending_")) {
+      removePendingStudent(deleteId);
+      setPendingStudents(getPendingStudents());
+    } else {
+      await DeleteStudent(deleteId, fetchStudent);
+    }
     setShowDeleteModal(false);
     setDeleteId(null);
   };
 
+  // ── Loading state ─────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <Box sx={{ display:"flex", justifyContent:"center", alignItems:"center", height:"80vh" }}>
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "80vh" }}>
         <CircularProgress size={50} />
       </Box>
     );
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="p-6">
 
@@ -150,7 +197,7 @@ function StudentPage() {
       <div className="relative w-full mb-5">
         <input
           type="search"
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           placeholder="Search students..."
           className="w-full border border-gray-200 rounded-2xl py-2.5 pl-10 pr-4 text-sm outline-none focus:border-green-400"
         />
@@ -173,35 +220,51 @@ function StudentPage() {
         paginatedStudents.map((value) => (
           <div key={value.id} className="bg-white border border-t-0 border-gray-200 last:rounded-b-xl">
             <div className="grid grid-cols-7 gap-4 px-6 py-4 items-center text-sm hover:bg-gray-50 transition">
+
+              {/* Name + avatar */}
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-bold text-xs shrink-0">
-                  {value.name_student?.split(" ").map((n) => n[0]).join("").slice(0,2).toUpperCase()}
+                  {value.name_student?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
                 </div>
                 <span className="font-semibold text-gray-800 truncate">{value.name_student}</span>
               </div>
+
+              {/* Course */}
               <div>
                 <span className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-medium">
-                  {[...new Map((value.courses || []).map(c => [c.id, c])).values()].map(c => c.name_course).join(", ") || "—"}
+                  {[...new Map((value.courses || []).map((c) => [c.id, c])).values()]
+                    .map((c) => c.name_course)
+                    .join(", ") || "—"}
                 </span>
               </div>
+
+              {/* Gender */}
               <div>
                 <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${value.gender === "Male" ? "bg-sky-50 text-sky-600" : "bg-pink-50 text-pink-600"}`}>
                   {value.gender}
                 </span>
               </div>
+
               <div className="text-gray-600">{value.phone}</div>
               <div className="text-gray-600">{value.parent}</div>
               <div className="truncate text-gray-600">{value.address}</div>
+
+              {/* Actions */}
               <div className="flex gap-2 justify-end">
-                <button onClick={() => handleEdit(value)}
-                  className="w-8 h-8 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-500 flex items-center justify-center transition cursor-pointer text-base">
+                <button
+                  onClick={() => handleEdit(value)}
+                  className="w-8 h-8 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-500 flex items-center justify-center transition cursor-pointer text-base"
+                >
                   ✏️
                 </button>
-                <button onClick={() => showDelete(value.id)}
-                  className="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition cursor-pointer text-base">
+                <button
+                  onClick={() => showDelete(value.id)}
+                  className="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition cursor-pointer text-base"
+                >
                   🗑️
                 </button>
               </div>
+
             </div>
           </div>
         ))
@@ -210,7 +273,7 @@ function StudentPage() {
       {/* ── Delete Modal ── */}
       {showDeleteModal && (
         <div className="form-overlay" onClick={() => setShowDeleteModal(false)}>
-          <div className="form-card delete-card" style={{width: 420}} onClick={(e) => e.stopPropagation()}>
+          <div className="form-card delete-card" style={{ width: 420 }} onClick={(e) => e.stopPropagation()}>
 
             <div className="form-header">
               <div className="form-header-top">
@@ -230,7 +293,7 @@ function StudentPage() {
               </p>
             </div>
 
-            <div className="form-footer" style={{paddingTop: 20}}>
+            <div className="form-footer" style={{ paddingTop: 20 }}>
               <button className="btn-cancel" onClick={() => setShowDeleteModal(false)}>
                 Cancel
               </button>
@@ -251,9 +314,7 @@ function StudentPage() {
             {/* Header */}
             <div className="form-header">
               <div className="form-header-top">
-                <span className="form-badge">
-                  {editId ? "Edit Record" : "New Enrollment"}
-                </span>
+                <span className="form-badge">{editId ? "Edit Record" : "New Enrollment"}</span>
                 <button className="form-close" type="button" onClick={toggleModal}>
                   <X size={14} />
                 </button>
@@ -268,47 +329,62 @@ function StudentPage() {
             <form onSubmit={handesave}>
               <div className="form-body">
 
-                {/* Name */}
+                {/* Full Name */}
                 <div className="field-group">
                   <label className="field-label">Full Name</label>
                   <div className="field-wrapper">
-                    <input type="text" value={name_student}
+                    <input
+                      type="text"
+                      value={name_student}
                       onChange={(e) => setNamestudents(e.target.value)}
-                      placeholder="e.g. Sok Dara" className="form-input" />
+                      placeholder="e.g. Sok Dara"
+                      className="form-input"
+                    />
                   </div>
                 </div>
 
-                {/* Course — only on create */}
-                {!editId && (
-                  <div className="field-group">
-                    <label className="field-label">Course</label>
-                    <div className="field-wrapper">
-                      <select value={course_id} onChange={(e) => setCourseId(e.target.value)} className="form-select">
-                        <option value="">Select a course</option>
-                        {courses.map((c) => (
-                          <option key={c.id} value={String(c.id)}>{c.name_course}</option>
-                        ))}
-                      </select>
-                      <span className="select-arrow">▼</span>
-                    </div>
+                {/* Course */}
+                <div className="field-group">
+                  <label className="field-label">Course</label>
+                  <div className="field-wrapper">
+                    <select
+                      value={course_id}
+                      onChange={(e) => setCourseId(e.target.value)}
+                      className="form-select"
+                    >
+                      <option value="">Select a course</option>
+                      {courses.map((c) => (
+                        <option key={c.id} value={String(c.id)}>{c.name_course}</option>
+                      ))}
+                    </select>
+                    <span className="select-arrow">▼</span>
                   </div>
-                )}
+                </div>
 
-                {/* Phone + Parent — 2 columns */}
+                {/* Phone + Gender */}
                 <div className="form-row">
                   <div className="field-group">
                     <label className="field-label">Phone</label>
                     <div className="field-wrapper">
-                      <input type="text" value={phone}
+                      <input
+                        type="text"
+                        value={phone}
                         onChange={(e) => setPhone(e.target.value)}
-                        placeholder="012 345 678" className="form-input" style={{paddingLeft: 14}} />
+                        placeholder="012 345 678"
+                        className="form-input"
+                        style={{ paddingLeft: 14 }}
+                      />
                     </div>
                   </div>
                   <div className="field-group">
                     <label className="field-label">Gender</label>
                     <div className="field-wrapper">
-                      <select value={gender} onChange={(e) => setGender(e.target.value)}
-                        className="form-select" style={{paddingLeft: 14}}>
+                      <select
+                        value={gender}
+                        onChange={(e) => setGender(e.target.value)}
+                        className="form-select"
+                        style={{ paddingLeft: 14 }}
+                      >
                         <option value="">Select</option>
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
@@ -322,9 +398,14 @@ function StudentPage() {
                 <div className="field-group">
                   <label className="field-label">Parent Name</label>
                   <div className="field-wrapper">
-                    <input type="text" value={parent}
+                    <input
+                      type="text"
+                      value={parent}
                       onChange={(e) => setParent(e.target.value)}
-                      placeholder="Parent's full name" className="form-input" style={{paddingLeft: 14}} />
+                      placeholder="Parent's full name"
+                      className="form-input"
+                      style={{ paddingLeft: 14 }}
+                    />
                   </div>
                 </div>
 
@@ -332,9 +413,14 @@ function StudentPage() {
                 <div className="field-group">
                   <label className="field-label">Address</label>
                   <div className="field-wrapper">
-                    <input type="text" value={address}
+                    <input
+                      type="text"
+                      value={address}
                       onChange={(e) => setAddress(e.target.value)}
-                      placeholder="Street, City" className="form-input" style={{paddingLeft: 14}} />
+                      placeholder="Street, City"
+                      className="form-input"
+                      style={{ paddingLeft: 14 }}
+                    />
                   </div>
                 </div>
 
@@ -353,13 +439,16 @@ function StudentPage() {
           </div>
         </div>
       )}
-      <div className='fixed bottom-8 right-8'>
+
+      {/* Pagination */}
+      <div className="fixed bottom-8 right-8">
         <PaginationControlled
-           page={page}
-           setPage={setPage}
-           total={Math.ceil(filteredStudents.length / itemsPerPage)}
-         />
+          page={page}
+          setPage={setPage}
+          total={Math.ceil(filteredStudents.length / itemsPerPage)}
+        />
       </div>
+
     </div>
   );
 }

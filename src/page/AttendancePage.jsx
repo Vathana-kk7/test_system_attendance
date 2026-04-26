@@ -317,7 +317,7 @@ function AttendancePage() {
         return;
       }
       
-      const doc = generateLocally(data, dateStr, courseName);
+      const doc = generateLocally(data, dateStr, courseName, courses);
       doc.save(`attendance_${dateStr}.pdf`);
     } catch (error) {
       console.error('Save PDF error:', error);
@@ -339,7 +339,7 @@ function AttendancePage() {
         return;
       }
       
-      const doc = generateLocally(data, dateStr, courseName);
+      const doc = generateLocally(data, dateStr, courseName, courses);
       const blob = doc.output('blob');
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');

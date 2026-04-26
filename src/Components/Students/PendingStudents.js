@@ -24,6 +24,15 @@ export const removePendingStudent = (studentId) => {
   localStorage.setItem(PENDING_STUDENTS_KEY, JSON.stringify(pending));
 };
 
+export const updatePendingStudent = (studentId, updatedData) => {
+  const pending = getPendingStudents();
+  const index = pending.findIndex(s => s.id === studentId);
+  if (index !== -1) {
+    pending[index] = { ...pending[index], ...updatedData };
+    localStorage.setItem(PENDING_STUDENTS_KEY, JSON.stringify(pending));
+  }
+};
+
 export const clearPendingStudents = () => {
   localStorage.removeItem(PENDING_STUDENTS_KEY);
 };

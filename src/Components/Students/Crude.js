@@ -26,7 +26,7 @@ export const ReadStudent = async (setStudents, setLoading) => {
 //Update
 export const UpdataStudent=async(id,data,onSuccess)=>{
   try {
-    await api.put(`/api/student/${id}`,data),
+    await api.put(`/api/student/${id}`,data);
     onSuccess();
   } catch (error) {
     console.log(error.response.data.message);
@@ -38,7 +38,7 @@ export const UpdataStudent=async(id,data,onSuccess)=>{
 // Create Student
 export const CreateStudent=async(data,onSuccess)=>{
   try {
-    await api.post("/api/student",data),
+    await api.post("/api/student",data);
     onSuccess();
   } catch (error) {
     console.log(error.response.data.message);
